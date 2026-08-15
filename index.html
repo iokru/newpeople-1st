@@ -308,8 +308,8 @@
 
     <h1>ID와 비밀번호를<br>간단하게 모아두세요</h1>
     <p class="intro">
-      입력한 비밀번호는 일부 글자를 무작위로 지운 뒤
-      이 브라우저의 LocalStorage에만 저장합니다.
+      입력한 ID와 비밀번호는 한 글자씩 건너뛰며 지운 뒤
+      이 브라우저의 LocalStorage에만 저장합니다. (사이트명은 그대로 저장)
     </p>
 
     <section class="card">
@@ -331,6 +331,7 @@
 
         <div class="example">
           <small>저장 예시</small>
+          <code>hello@abc.com → h_l_o@_b_.c_m</code><br>
           <code>apple8456 → a_p_e_4_6</code>
         </div>
 
@@ -354,13 +355,13 @@
 
     <aside class="notice">
       <strong>중요:</strong>
-      이 방식은 암호화가 아니라 비밀번호 일부 문자를 삭제하는 MVP 방식입니다.
-      원본 전체 문자열은 LocalStorage에 저장하지 않지만, 남아 있는 문자와 ID/사이트 정보는
+      이 방식은 암호화가 아니라 ID/비밀번호 일부 문자를 삭제하는 MVP 방식입니다.
+      원본 전체 문자열은 LocalStorage에 저장하지 않지만, 남아 있는 문자와 사이트명은
       브라우저 저장소에서 확인할 수 있습니다. 실제 중요한 계정의 보안 저장소로 사용하면 안 됩니다.
     </aside>
 
     <footer>
-      원본 비밀번호 전체 문자열은 LocalStorage에 저장하지 않습니다.
+      원본 ID/비밀번호 전체 문자열은 LocalStorage에 저장하지 않습니다.
     </footer>
   </main>
 
@@ -391,30 +392,15 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     }
 
-    function maskPassword(password) {
-      const chars = Array.from(password);
+    function maskText(value) {
+      const chars = Array.from(value);
 
       if (chars.length === 0) return "";
       if (chars.length === 1) return "_";
 
-      // 약 절반을 무작위로 삭제.
-      // 최소 1글자는 "_"가 되고, 최소 1글자는 남도록 함.
-      const maskCount = Math.max(
-        1,
-        Math.min(chars.length - 1, Math.round(chars.length * 0.5))
-      );
-
-      const indexes = Array.from({ length: chars.length }, (_, i) => i);
-
-      for (let i = indexes.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
-      }
-
-      const masked = new Set(indexes.slice(0, maskCount));
-
+      // 글자 하나 건너 하나씩(홀수 번째 위치) "_"로 치환.
       return chars
-        .map((char, index) => masked.has(index) ? "_" : char)
+        .map((char, index) => (index % 2 === 1 ? "_" : char))
         .join("");
     }
 
@@ -455,7 +441,7 @@
               <div class="item-top">
                 <div>
                   <h3 class="site">${escapeHtml(entry.site)}</h3>
-                  <div class="id">${escapeHtml(entry.userId)}</div>
+                  <div class="id">${escapeHtml(entry.maskedUserId)}</div>
                 </div>
                 <button class="delete-btn" data-delete="${entry.id}">삭제</button>
               </div>
@@ -521,14 +507,15 @@
 
       if (!site || !userId || !password) return;
 
-      const maskedPassword = maskPassword(password);
+      const maskedUserId = maskText(userId);
+      const maskedPassword = maskText(password);
 
-      // 원본 password를 객체에 넣지 않기 때문에
-      // LocalStorage에는 원본 비밀번호 전체 문자열이 저장되지 않음.
+      // 원본 userId/password를 객체에 넣지 않기 때문에
+      // LocalStorage에는 원본 문자열이 저장되지 않음(사이트명은 예외).
       entries.unshift({
         id: makeId(),
         site,
-        userId,
+        maskedUserId,
         maskedPassword,
         createdAt: new Date().toISOString()
       });

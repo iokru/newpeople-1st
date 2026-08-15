@@ -221,8 +221,15 @@
       word-break:break-word;
     }
 
-    .id{
+    .id-row{
+      display:flex;
+      align-items:center;
+      gap:6px;
       margin-top:5px;
+    }
+
+    .id{
+      min-width:0;
       color:var(--sub);
       font-size:14px;
       word-break:break-all;
@@ -276,6 +283,14 @@
       font-weight:800;
       cursor:pointer;
       box-shadow:0 2px 8px rgba(0,0,0,.05);
+    }
+
+    .copy-btn-sm{
+      flex-shrink:0;
+      padding:5px 9px;
+      font-size:11px;
+      box-shadow:none;
+      background:var(--soft);
     }
 
     .notice{
@@ -441,14 +456,17 @@
               <div class="item-top">
                 <div>
                   <h3 class="site">${escapeHtml(entry.site)}</h3>
-                  <div class="id">${escapeHtml(entry.maskedUserId)}</div>
+                  <div class="id-row">
+                    <span class="id">${escapeHtml(entry.maskedUserId)}</span>
+                    <button class="copy-btn copy-btn-sm" data-copy="${entry.id}" data-field="maskedUserId">복사</button>
+                  </div>
                 </div>
                 <button class="delete-btn" data-delete="${entry.id}">삭제</button>
               </div>
 
               <div class="pw-row">
                 <code>${escapeHtml(entry.maskedPassword)}</code>
-                <button class="copy-btn" data-copy="${entry.id}">복사</button>
+                <button class="copy-btn" data-copy="${entry.id}" data-field="maskedPassword">복사</button>
               </div>
             </article>
           `).join("")}
@@ -458,17 +476,20 @@
       document.querySelectorAll("[data-copy]").forEach(button => {
         button.addEventListener("click", async () => {
           const id = button.dataset.copy;
+          const field = button.dataset.field;
           const entry = entries.find(item => item.id === id);
           if (!entry) return;
 
+          const text = entry[field];
+
           try {
-            await navigator.clipboard.writeText(entry.maskedPassword);
+            await navigator.clipboard.writeText(text);
             const originalText = button.textContent;
             button.textContent = "복사됨";
             setTimeout(() => button.textContent = originalText, 1200);
           } catch (e) {
             // file:// 환경 등에서 Clipboard API가 제한될 수 있어 fallback 제공
-            fallbackCopy(entry.maskedPassword);
+            fallbackCopy(text);
             const originalText = button.textContent;
             button.textContent = "복사됨";
             setTimeout(() => button.textContent = originalText, 1200);

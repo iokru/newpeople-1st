@@ -1,14 +1,21 @@
--- Supabase SQL Editor에서 한 번만 실행하면 되는 스키마.
--- 방문자(visitor) 1명당 1행. 같은 브라우저는 localStorage의 visitor_id로 항상 같은 행을 가리킴.
+-- Supabase SQL Editor에서 실행하는 스키마 (재실행해도 안전함).
+-- (visitor_id, version) 조합이 1행. 같은 브라우저(visitor_id)라도
+-- APP_VERSION이 바뀌면 새 행이 생겨서 그 버전에서는 새 방문자로 집계됨.
 
 create table if not exists public.visitors (
-  visitor_id text primary key,
+  visitor_id text not null,
   session_id text not null,
   visited_at timestamptz not null default now(),
   saved_account boolean not null default false,
   save_count integer not null default 0,
-  version text not null default 'v1'
+  version text not null default 'v1',
+  primary key (visitor_id, version)
 );
+
+-- 예전 스키마(visitor_id 단독 PK)로 이미 만들어져 있었다면
+-- (visitor_id, version) 조합 PK로 교체. 새로 만든 테이블에서는 그냥 통과됨.
+alter table public.visitors drop constraint if exists visitors_pkey;
+alter table public.visitors add constraint visitors_pkey primary key (visitor_id, version);
 
 alter table public.visitors enable row level security;
 
@@ -37,7 +44,10 @@ revoke update on public.visitors from anon;
 grant update (session_id) on public.visitors to anon;
 
 -- 계정을 저장할 때마다 호출: saved_account를 true로, save_count를 1 증가.
-create or replace function public.increment_save_count(p_visitor_id text)
+-- visitor_id만으로는 버전별 행을 구분 못 하므로 version도 같이 받음.
+drop function if exists public.increment_save_count(text);
+
+create or replace function public.increment_save_count(p_visitor_id text, p_version text)
 returns void
 language sql
 security definer
@@ -46,7 +56,8 @@ as $$
   update public.visitors
   set saved_account = true,
       save_count = save_count + 1
-  where visitor_id = p_visitor_id;
+  where visitor_id = p_visitor_id
+    and version = p_version;
 $$;
 
-grant execute on function public.increment_save_count(text) to anon;
+grant execute on function public.increment_save_count(text, text) to anon;

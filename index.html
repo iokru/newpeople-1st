@@ -613,8 +613,10 @@
       try {
         const supabase = await getSupabaseClient();
 
-        // 방문자 1명 = 1행. 이미 있으면 23505(unique_violation)가 나고,
-        // 그때는 session_id만 최신으로 갱신(visited_at/저장 정보는 그대로 유지).
+        // (visitor_id, version) 조합이 1행. 버전이 바뀌면 같은 방문자도
+        // 그 버전에서는 새 행 = 새로 집계됨. 같은 버전 내 재방문은
+        // 23505(unique_violation)가 나고, 그때는 session_id만 갱신
+        // (visited_at/저장 정보는 그대로 유지).
         const { error } = await supabase.from("visitors").insert({
           visitor_id: visitorId,
           session_id: sessionId,
@@ -626,7 +628,8 @@
             await supabase
               .from("visitors")
               .update({ session_id: sessionId })
-              .eq("visitor_id", visitorId);
+              .eq("visitor_id", visitorId)
+              .eq("version", APP_VERSION);
           } else {
             console.warn("visitor tracking insert failed", error);
           }
@@ -641,7 +644,8 @@
       try {
         const supabase = await getSupabaseClient();
         const { error } = await supabase.rpc("increment_save_count", {
-          p_visitor_id: visitorId
+          p_visitor_id: visitorId,
+          p_version: APP_VERSION
         });
         if (error) console.warn("save tracking failed", error);
       } catch (e) {

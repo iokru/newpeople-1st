@@ -50,15 +50,3 @@ as $$
 $$;
 
 grant execute on function public.increment_save_count(text) to anon;
-
--- Table Editor에서 방문 시각을 한국시간(KST)으로 편하게 보기 위한 뷰.
--- 실제 저장은 계속 UTC(visited_at)로 유지되고, 이건 보기용 변환만 함.
-create or replace view public.visitors_kst as
-select
-  visitor_id,
-  session_id,
-  visited_at at time zone 'Asia/Seoul' as visited_at_kst,
-  saved_account,
-  save_count,
-  version
-from public.visitors;

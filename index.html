@@ -542,6 +542,7 @@
       });
 
       saveEntries();
+      window.trackAccountSaved?.();
 
       siteInput.value = "";
       idInput.value = "";
@@ -551,6 +552,94 @@
     });
 
     render();
+  </script>
+
+  <script type="module">
+    // Supabase 방문자/저장 통계 트래킹.
+    // 기존 앱 기능과는 무관하며, 실패해도 앱 동작에 영향을 주지 않음.
+
+    const APP_VERSION = "v1"; // 다음 MVP 버전 배포 시 이 값만 "v2"로 바꾸면 됨.
+
+    const VISITOR_KEY = "vault_visitor_id";
+    const SESSION_KEY = "vault_session_id";
+
+    function getOrCreateId(storage, key) {
+      let id = storage.getItem(key);
+      if (!id) {
+        id = (window.crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : Date.now().toString(36) + Math.random().toString(36).slice(2);
+        storage.setItem(key, id);
+      }
+      return id;
+    }
+
+    // localStorage: 같은 브라우저면 항상 같은 visitor_id.
+    const visitorId = getOrCreateId(window.localStorage, VISITOR_KEY);
+    // sessionStorage: 브라우저 세션(탭/창)마다 새로 생성.
+    const sessionId = getOrCreateId(window.sessionStorage, SESSION_KEY);
+
+    let supabaseClientPromise = null;
+
+    function getSupabaseClient() {
+      if (!supabaseClientPromise) {
+        supabaseClientPromise = (async () => {
+          const res = await fetch("/api/config");
+          if (!res.ok) throw new Error("config fetch failed");
+
+          const { supabaseUrl, supabaseAnonKey } = await res.json();
+          if (!supabaseUrl || !supabaseAnonKey) {
+            throw new Error("Supabase 환경 변수가 설정되지 않았습니다.");
+          }
+
+          const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+          return createClient(supabaseUrl, supabaseAnonKey);
+        })();
+      }
+      return supabaseClientPromise;
+    }
+
+    async function trackVisit() {
+      try {
+        const supabase = await getSupabaseClient();
+
+        // 방문자 1명 = 1행. 이미 있으면 23505(unique_violation)가 나고,
+        // 그때는 session_id만 최신으로 갱신(visited_at/저장 정보는 그대로 유지).
+        const { error } = await supabase.from("visitors").insert({
+          visitor_id: visitorId,
+          session_id: sessionId,
+          version: APP_VERSION
+        });
+
+        if (error) {
+          if (error.code === "23505") {
+            await supabase
+              .from("visitors")
+              .update({ session_id: sessionId })
+              .eq("visitor_id", visitorId);
+          } else {
+            console.warn("visitor tracking insert failed", error);
+          }
+        }
+      } catch (e) {
+        console.warn("visitor tracking failed", e);
+      }
+    }
+
+    // 계정 저장 성공 시 saveEntries() 직후 호출됨 (index.html 내 submit 핸들러 참고).
+    window.trackAccountSaved = async function trackAccountSaved() {
+      try {
+        const supabase = await getSupabaseClient();
+        const { error } = await supabase.rpc("increment_save_count", {
+          p_visitor_id: visitorId
+        });
+        if (error) console.warn("save tracking failed", error);
+      } catch (e) {
+        console.warn("save tracking failed", e);
+      }
+    };
+
+    trackVisit();
   </script>
 </body>
 </html>

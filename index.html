@@ -112,6 +112,31 @@
       color:#b0b8c1;
     }
 
+    .field-row{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .field-row input{
+      flex:1;
+      min-width:0;
+    }
+
+    .mask-btn{
+      flex-shrink:0;
+      border:0;
+      border-radius:14px;
+      padding:0 14px;
+      height:52px;
+      background:var(--blue-soft);
+      color:var(--blue);
+      font-size:13px;
+      font-weight:800;
+      white-space:nowrap;
+      cursor:pointer;
+    }
+
     .example{
       margin-top:4px;
       padding:13px 14px;
@@ -126,11 +151,21 @@
       margin-bottom:4px;
     }
 
+    .example p{
+      margin:0;
+      font-size:13px;
+      line-height:1.6;
+      color:#4e5968;
+    }
+
     .example code{
-      font-size:14px;
+      font-size:13px;
       font-weight:800;
-      letter-spacing:.08em;
+      letter-spacing:.02em;
       color:#333d4b;
+      background:#eceff2;
+      padding:1px 5px;
+      border-radius:6px;
     }
 
     .save-btn{
@@ -333,8 +368,8 @@
 
     <h1>ID와 비밀번호를<br>간단하게 모아두세요</h1>
     <p class="intro">
-      입력한 ID와 비밀번호는 한 글자씩 건너뛰며 지운 뒤
-      이 브라우저의 LocalStorage에만 저장합니다. (사이트명은 그대로 저장)
+      ID와 비밀번호에서 가리고 싶은 글자를 직접 "*"로 바꾼 뒤
+      이 브라우저의 LocalStorage에 저장합니다. (사이트명은 항상 그대로 저장)
     </p>
 
     <section class="card">
@@ -346,22 +381,27 @@
 
         <div class="field">
           <label for="userId">ID</label>
-          <input id="userId" type="text" placeholder="예: hello@example.com" autocomplete="username" required />
+          <div class="field-row">
+            <input id="userId" type="text" placeholder="예: hello@example.com" autocomplete="username" required />
+            <button type="button" class="mask-btn" data-mask-target="userId">마스킹 문자 넣기</button>
+          </div>
         </div>
 
         <div class="field">
           <label for="password">비밀번호</label>
-          <input id="password" type="password" placeholder="비밀번호 입력" autocomplete="new-password" required />
+          <div class="field-row">
+            <input id="password" type="text" placeholder="비밀번호 입력" autocomplete="new-password" required />
+            <button type="button" class="mask-btn" data-mask-target="password">마스킹 문자 넣기</button>
+          </div>
         </div>
 
         <div class="example">
-          <small>저장 예시</small>
-          <code>hello@abc.com → h_l_o@_b_.c_m</code><br>
-          <code>apple8456 → a_p_e_4_6</code>
+          <small>사용 방법</small>
+          <p>가리고 싶은 글자 위치에 커서를 두고 <code>마스킹 문자 넣기</code> 버튼을 누르면 그 자리에 <code>*</code>가 추가됩니다.</p>
         </div>
 
         <button id="saveBtn" class="save-btn" type="submit">
-          변형해서 저장
+          입력한 대로 저장
         </button>
       </form>
     </section>
@@ -380,13 +420,13 @@
 
     <aside class="notice">
       <strong>중요:</strong>
-      이 방식은 암호화가 아니라 ID/비밀번호 일부 문자를 삭제하는 MVP 방식입니다.
-      원본 전체 문자열은 LocalStorage에 저장하지 않지만, 남아 있는 문자와 사이트명은
-      브라우저 저장소에서 확인할 수 있습니다. 실제 중요한 계정의 보안 저장소로 사용하면 안 됩니다.
+      이 방식은 암호화가 아니라, 입력창에 있는 내용을 그대로 저장하는 MVP 방식입니다.
+      "마스킹 문자 넣기"로 가리지 않은 글자는 원본 그대로 LocalStorage에 저장되니,
+      가리고 싶은 글자는 저장 전에 꼭 직접 "*"로 바꿔주세요. 실제 중요한 계정의 보안 저장소로 사용하면 안 됩니다.
     </aside>
 
     <footer>
-      원본 ID/비밀번호 전체 문자열은 LocalStorage에 저장하지 않습니다.
+      입력창에 있는 내용이 그대로 LocalStorage에 저장됩니다. "*"로 가린 부분만 안전합니다.
     </footer>
   </main>
 
@@ -417,17 +457,24 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     }
 
-    function maskText(value) {
-      const chars = Array.from(value);
+    function insertMaskChar(input) {
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? input.value.length;
+      const value = input.value;
 
-      if (chars.length === 0) return "";
-      if (chars.length === 1) return "_";
+      input.value = value.slice(0, start) + "*" + value.slice(end);
 
-      // 글자 하나 건너 하나씩(홀수 번째 위치) "_"로 치환.
-      return chars
-        .map((char, index) => (index % 2 === 1 ? "_" : char))
-        .join("");
+      const cursor = start + 1;
+      input.focus();
+      input.setSelectionRange(cursor, cursor);
     }
+
+    document.querySelectorAll("[data-mask-target]").forEach(button => {
+      button.addEventListener("click", () => {
+        const input = document.getElementById(button.dataset.maskTarget);
+        if (input) insertMaskChar(input);
+      });
+    });
 
     function makeId() {
       if (window.crypto && crypto.randomUUID) {
@@ -538,16 +585,13 @@
 
       if (!site || !userId || !password) return;
 
-      const maskedUserId = maskText(userId);
-      const maskedPassword = maskText(password);
-
-      // 원본 userId/password를 객체에 넣지 않기 때문에
-      // LocalStorage에는 원본 문자열이 저장되지 않음(사이트명은 예외).
+      // 입력창에 있는 내용을 그대로 저장. 가려야 할 글자는
+      // 사용자가 "마스킹 문자 넣기" 버튼으로 저장 전에 직접 "*"로 바꿔야 함.
       entries.unshift({
         id: makeId(),
         site,
-        maskedUserId,
-        maskedPassword,
+        maskedUserId: userId,
+        maskedPassword: password,
         createdAt: new Date().toISOString()
       });
 

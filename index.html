@@ -99,7 +99,7 @@
       color:#4e5968;
     }
 
-    .field input{
+    .field input:not(.char-box){
       width:100%;
       border:0;
       outline:none;
@@ -111,7 +111,7 @@
       transition:.15s ease;
     }
 
-    .field input:focus{
+    .field input:not(.char-box):focus{
       background:var(--blue-soft);
     }
 
@@ -119,29 +119,50 @@
       color:#b0b8c1;
     }
 
-    .field-row{
+    .box-group{
       display:flex;
-      gap:8px;
-      align-items:center;
+      flex-wrap:nowrap;
+      gap:5px;
     }
 
-    .field-row input{
-      flex:1;
+    .char-box{
+      flex:1 1 0;
       min-width:0;
+      max-width:32px;
+      aspect-ratio:1/1;
+      height:auto;
+      padding:0;
+      border:1.5px solid var(--line);
+      border-radius:50%;
+      background:#fff;
+      font-size:12px;
+      font-weight:800;
+      text-align:center;
+      color:var(--text);
+      transition:.15s ease;
     }
 
-    .mask-btn{
-      flex-shrink:0;
+    .char-box:focus{
+      border-color:var(--blue);
+      outline:2px solid var(--blue-soft);
+    }
+
+    .char-box.masked{
+      background:var(--muted);
+      border-color:var(--muted);
+      color:#fff;
+      cursor:not-allowed;
+    }
+
+    .add-box-btn{
+      margin-top:8px;
       border:0;
-      border-radius:14px;
-      padding:0 14px;
-      height:52px;
-      background:var(--blue-soft);
+      background:transparent;
       color:var(--blue);
       font-size:13px;
       font-weight:800;
-      white-space:nowrap;
       cursor:pointer;
+      padding:6px 2px;
     }
 
     .example{
@@ -345,6 +366,27 @@
       background:var(--soft);
     }
 
+    .search-input{
+      width:100%;
+      border:0;
+      outline:none;
+      background:var(--soft);
+      border-radius:16px;
+      padding:14px 16px;
+      font-size:15px;
+      color:var(--text);
+      margin-bottom:14px;
+      transition:.15s ease;
+    }
+
+    .search-input:focus{
+      background:var(--blue-soft);
+    }
+
+    .search-input::placeholder{
+      color:#b0b8c1;
+    }
+
     .notice{
       margin-top:26px;
       padding:14px 15px;
@@ -376,8 +418,9 @@
 
     <h1>ID와 비밀번호를<br>간단하게 모아두세요</h1>
     <p class="intro">
-      ID와 비밀번호에서 가리고 싶은 글자를 직접 "*"로 바꾼 뒤
-      이 브라우저의 LocalStorage에 저장합니다. (사이트명은 항상 그대로 저장)
+      ID와 비밀번호는 홀수 번째 자리의 문자만 입력해 주세요.<br>
+      짝수 번째 자리는 자동으로 마스킹되어 입력할 수 없으며, 실제 문자 대신
+      "*"로 LocalStorage에 저장됩니다. (사이트명은 항상 그대로 저장)
     </p>
 
     <section class="card">
@@ -388,24 +431,20 @@
         </div>
 
         <div class="field">
-          <label for="userId">ID</label>
-          <div class="field-row">
-            <input id="userId" type="text" placeholder="예: hello@example.com" autocomplete="username" required />
-            <button type="button" class="mask-btn" data-mask-target="userId">마스킹 문자 넣기</button>
-          </div>
+          <label>ID</label>
+          <div class="box-group" id="userIdBoxes"></div>
+          <button type="button" class="add-box-btn" data-target="userId">+ 칸 추가</button>
         </div>
 
         <div class="field">
-          <label for="password">비밀번호</label>
-          <div class="field-row">
-            <input id="password" type="text" placeholder="비밀번호 입력" autocomplete="new-password" required />
-            <button type="button" class="mask-btn" data-mask-target="password">마스킹 문자 넣기</button>
-          </div>
+          <label>비밀번호</label>
+          <div class="box-group" id="passwordBoxes"></div>
+          <button type="button" class="add-box-btn" data-target="password">+ 칸 추가</button>
         </div>
 
         <div class="example">
           <small>사용 방법</small>
-          <p>가리고 싶은 글자 위치에 커서를 두고 <code>마스킹 문자 넣기</code> 버튼을 누르면 그 자리에 <code>*</code>가 추가됩니다.</p>
+          <p>한 글자씩 칸에 입력하세요. 짝수 번째 칸(2, 4, 6...)은 자동으로 마스킹되어 입력할 수 없습니다. 칸이 더 필요하면 <code>+ 칸 추가</code>를 누르세요.</p>
         </div>
 
         <button id="saveBtn" class="save-btn" type="submit">
@@ -423,18 +462,20 @@
         <div id="count" class="count">0개</div>
       </div>
 
+      <input id="searchInput" type="text" class="search-input" placeholder="사이트명으로 검색" autocomplete="off" />
+
       <div id="content"></div>
     </section>
 
     <aside class="notice">
       <strong>중요:</strong>
-      이 방식은 암호화가 아니라, 입력창에 있는 내용을 그대로 저장하는 MVP 방식입니다.
-      "마스킹 문자 넣기"로 가리지 않은 글자는 원본 그대로 LocalStorage에 저장되니,
-      가리고 싶은 글자는 저장 전에 꼭 직접 "*"로 바꿔주세요. 실제 중요한 계정의 보안 저장소로 사용하면 안 됩니다.
+      이 방식은 암호화가 아니라, 짝수 번째 칸은 아예 입력하지 못하게 막아 "*"로만
+      저장하는 MVP 방식입니다. 홀수 번째 칸에 입력한 글자는 원본 그대로 LocalStorage에
+      저장되니, 실제 중요한 계정의 보안 저장소로 사용하면 안 됩니다.
     </aside>
 
     <footer>
-      입력창에 있는 내용이 그대로 LocalStorage에 저장됩니다. "*"로 가린 부분만 안전합니다.
+      홀수 번째 칸에 입력한 글자만 그대로 LocalStorage에 저장됩니다. 짝수 번째 칸은 항상 "*"로 저장됩니다.
     </footer>
   </main>
 
@@ -443,10 +484,101 @@
 
     const form = document.getElementById("vaultForm");
     const siteInput = document.getElementById("site");
-    const idInput = document.getElementById("userId");
-    const passwordInput = document.getElementById("password");
     const content = document.getElementById("content");
     const countEl = document.getElementById("count");
+    const searchInput = document.getElementById("searchInput");
+
+    let searchQuery = "";
+    searchInput.addEventListener("input", () => {
+      searchQuery = searchInput.value;
+      render();
+    });
+
+    const DEFAULT_BOX_COUNT = 10;
+    const boxCount = { userId: DEFAULT_BOX_COUNT, password: DEFAULT_BOX_COUNT };
+
+    function createBoxElement(field, index, isMasked) {
+      const box = document.createElement("input");
+      box.type = "text";
+      box.maxLength = 1;
+      box.className = "char-box" + (isMasked ? " masked" : "");
+      box.dataset.field = field;
+      box.dataset.index = index;
+
+      if (isMasked) {
+        // 짝수 번째 칸: 입력 자체를 막고 "*"만 저장되도록 고정.
+        box.value = "*";
+        box.disabled = true;
+        box.tabIndex = -1;
+      } else {
+        box.autocomplete = "off";
+        box.addEventListener("input", event => {
+          if (event.isComposing) return; // 한글 조합 중에는 처리하지 않음 (조합 깨짐 방지)
+          handleBoxInput(event);
+        });
+        box.addEventListener("keydown", handleBoxKeydown);
+      }
+
+      return box;
+    }
+
+    function initBoxes(field, count) {
+      const container = document.getElementById(field + "Boxes");
+      container.innerHTML = "";
+      for (let i = 1; i <= count; i++) {
+        container.appendChild(createBoxElement(field, i, i % 2 === 0));
+      }
+    }
+
+    function addBox(field) {
+      const container = document.getElementById(field + "Boxes");
+      const index = container.children.length + 1;
+      container.appendChild(createBoxElement(field, index, index % 2 === 0));
+      boxCount[field] = index;
+    }
+
+    function getEditableBoxes(field) {
+      return Array.from(
+        document.querySelectorAll(`.char-box[data-field="${field}"]:not(.masked)`)
+      );
+    }
+
+    function handleBoxInput(event) {
+      const input = event.target;
+      input.value = input.value.slice(-1);
+
+      if (input.value) {
+        const editable = getEditableBoxes(input.dataset.field);
+        const next = editable[editable.indexOf(input) + 1];
+        if (next) next.focus();
+      }
+    }
+
+    function handleBoxKeydown(event) {
+      if (event.key !== "Backspace" || event.target.value) return;
+
+      const editable = getEditableBoxes(event.target.dataset.field);
+      const prev = editable[editable.indexOf(event.target) - 1];
+      if (prev) prev.focus();
+    }
+
+    function getFieldValue(field) {
+      return Array.from(document.querySelectorAll(`.char-box[data-field="${field}"]`))
+        .sort((a, b) => Number(a.dataset.index) - Number(b.dataset.index))
+        .map(box => box.classList.contains("masked") ? "*" : box.value)
+        .join("");
+    }
+
+    function hasEditableInput(field) {
+      return getEditableBoxes(field).some(box => box.value);
+    }
+
+    document.querySelectorAll(".add-box-btn").forEach(button => {
+      button.addEventListener("click", () => addBox(button.dataset.target));
+    });
+
+    initBoxes("userId", boxCount.userId);
+    initBoxes("password", boxCount.password);
 
     let entries = loadEntries();
 
@@ -465,25 +597,6 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     }
 
-    function insertMaskChar(input) {
-      const start = input.selectionStart ?? input.value.length;
-      const end = input.selectionEnd ?? input.value.length;
-      const value = input.value;
-
-      input.value = value.slice(0, start) + "*" + value.slice(end);
-
-      const cursor = start + 1;
-      input.focus();
-      input.setSelectionRange(cursor, cursor);
-    }
-
-    document.querySelectorAll("[data-mask-target]").forEach(button => {
-      button.addEventListener("click", () => {
-        const input = document.getElementById(button.dataset.maskTarget);
-        if (input) insertMaskChar(input);
-      });
-    });
-
     function makeId() {
       if (window.crypto && crypto.randomUUID) {
         return crypto.randomUUID();
@@ -501,7 +614,12 @@
     }
 
     function render() {
-      countEl.textContent = `${entries.length}개`;
+      const query = searchQuery.trim().toLowerCase();
+      const filtered = query
+        ? entries.filter(entry => entry.site.toLowerCase().includes(query))
+        : entries;
+
+      countEl.textContent = `${filtered.length}개`;
 
       if (entries.length === 0) {
         content.innerHTML = `
@@ -514,9 +632,20 @@
         return;
       }
 
+      if (filtered.length === 0) {
+        content.innerHTML = `
+          <div class="empty">
+            <div class="icon">🔍</div>
+            <strong>검색 결과가 없어요</strong>
+            다른 사이트명으로 검색해 보세요.
+          </div>
+        `;
+        return;
+      }
+
       content.innerHTML = `
         <div class="list">
-          ${entries.map(entry => `
+          ${filtered.map(entry => `
             <article class="item">
               <div class="item-top">
                 <div>
@@ -588,18 +717,15 @@
       event.preventDefault();
 
       const site = siteInput.value.trim();
-      const userId = idInput.value.trim();
-      const password = passwordInput.value;
 
-      if (!site || !userId || !password) return;
+      if (!site || !hasEditableInput("userId") || !hasEditableInput("password")) return;
 
-      // 입력창에 있는 내용을 그대로 저장. 가려야 할 글자는
-      // 사용자가 "마스킹 문자 넣기" 버튼으로 저장 전에 직접 "*"로 바꿔야 함.
+      // 짝수 번째 칸은 애초에 입력이 막혀 있어 항상 "*"로 채워짐.
       entries.unshift({
         id: makeId(),
         site,
-        maskedUserId: userId,
-        maskedPassword: password,
+        maskedUserId: getFieldValue("userId"),
+        maskedPassword: getFieldValue("password"),
         createdAt: new Date().toISOString()
       });
 
@@ -607,8 +733,10 @@
       window.trackAccountSaved?.();
 
       siteInput.value = "";
-      idInput.value = "";
-      passwordInput.value = "";
+      initBoxes("userId", DEFAULT_BOX_COUNT);
+      initBoxes("password", DEFAULT_BOX_COUNT);
+      boxCount.userId = DEFAULT_BOX_COUNT;
+      boxCount.password = DEFAULT_BOX_COUNT;
 
       render();
     });
@@ -620,7 +748,7 @@
     // Supabase 방문자/저장 통계 트래킹.
     // 기존 앱 기능과는 무관하며, 실패해도 앱 동작에 영향을 주지 않음.
 
-    const APP_VERSION = "v2"; // 다음 MVP 버전 배포 시 이 값만 "v3"으로 바꾸면 됨.
+    const APP_VERSION = "v3";
 
     const VISITOR_KEY = "vault_visitor_id";
     const SESSION_KEY = "vault_session_id";
